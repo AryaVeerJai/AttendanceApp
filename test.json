@@ -1,0 +1,168 @@
+[
+    {
+        "__v": 0,
+        "_id": "69535f99d55d3b9243f3894a",
+        "attendanceStatus": "clocked_in",
+        "breakHours": 0,
+        "breaks": [],
+        "clockIn": {
+            "accuracy": 2207,
+            "address": "Unknown location",
+            "batteryLevel": 35,
+            "deviceInfo": {
+                "deviceId": "22021211RI-1766819752816",
+                "deviceName": "POCO F4",
+                "deviceType": "Android",
+                "osVersion": "14"
+            },
+            "isBackground": false,
+            "location": {
+                "type": "Point",
+                "coordinates": [
+                    77.5339255,
+                    13.0148137
+                ]
+            },
+            "time": "2025-12-30T05:14:01.172Z"
+        },
+        "clockOut": {
+            "accuracy": 2207,
+            "address": "Unknown location",
+            "batteryLevel": 35,
+            "deviceInfo": {
+                "deviceId": "22021211RI-1766819752816",
+                "deviceName": "POCO F4",
+                "deviceType": "Android",
+                "osVersion": "14"
+            },
+            "isBackground": false,
+            "location": {
+                "type": "Point",
+                "coordinates": [
+                    77.5339255,
+                    13.0148137
+                ]
+            },
+            "time": "2025-12-30T05:14:01.172Z"
+        },
+        "createdAt": "2025-12-30T05:14:01.176Z",
+        "date": "2025-12-29T18:30:00.000Z",
+        "duration": null,
+        "earlyLeaveMinutes": 0,
+        "employee": "694e66a00d88280242b2dc5e",
+        "employeeId": "EMP0002",
+        "formattedDate": "2025-12-29",
+        "id": "69535f99d55d3b9243f3894a",
+        "isAutoClockOut": false,
+        "isEarlyLeave": false,
+        "isLate": true,
+        "lateMinutes": 104,
+        "locationAccuracy": "medium",
+        "netHours": 0,
+        "notes": "Clocking in via mobile app",
+        "overtimeHours": 0,
+        "status": "present",
+        "syncAttempts": 0,
+        "synced": true,
+        "totalHours": 0,
+        "updatedAt": "2025-12-30T05:14:01.176Z"
+    },
+    {
+        "__v": 0,
+        "_id": "69525a3be6bb6c9865d3424e",
+        "attendanceStatus": "clocked_in",
+        "breakHours": 0,
+        "breaks": [],
+        "clockIn": {
+            "accuracy": 15.069999694824219,
+            "address": "Unknown location",
+            "batteryLevel": 35,
+            "deviceInfo": [Object
+            ],
+            "isBackground": false,
+            "location": [Object
+            ],
+            "time": "2025-12-29T04:38:51.962Z"
+        },
+        "clockOut": {
+            "accuracy": 15.069999694824219,
+            "address": "Unknown location",
+            "batteryLevel": 10,
+            "deviceInfo": [Object
+            ],
+            "isBackground": false,
+            "location": [Object
+            ],
+            "time": "2025-12-29T12:40:21.220Z"
+        },
+        "createdAt": "2025-12-29T10:38:51.965Z",
+        "date": "2025-12-28T18:30:00.000Z",
+        "duration": 8.024793888888889,
+        "earlyLeaveMinutes": 0,
+        "employee": "694e66a00d88280242b2dc5e",
+        "employeeId": "EMP0002",
+        "formattedDate": "2025-12-28",
+        "id": "69525a3be6bb6c9865d3424e",
+        "isAutoClockOut": false,
+        "isEarlyLeave": false,
+        "isLate": true,
+        "lateMinutes": 428,
+        "locationAccuracy": "medium",
+        "netHours": 0,
+        "notes": "Clocking in via mobile app",
+        "overtimeHours": 0,
+        "status": "present",
+        "syncAttempts": 0,
+        "synced": true,
+        "totalHours": 0,
+        "updatedAt": "2025-12-29T10:38:51.965Z"
+    },
+    {
+        "__v": 0,
+        "_id": "694f701b911f9aaf27d334a4",
+        "attendanceStatus": "clocked_out",
+        "breakHours": 0,
+        "breaks": [],
+        "clockIn": {
+            "address": "Unknown location",
+            "deviceInfo": [Object
+            ],
+            "isBackground": false,
+            "location": [Object
+            ],
+            "time": "2025-12-27T05:35:23.857Z"
+        },
+        "clockOut": {
+            "accuracy": 20,
+            "address": "Unknown location",
+            "batteryLevel": 35,
+            "deviceInfo": [Object
+            ],
+            "isBackground": false,
+            "location": [Object
+            ],
+            "time": "2025-12-27T08:35:21.220Z"
+        },
+        "createdAt": "2025-12-27T05:35:23.862Z",
+        "date": "2025-12-26T18:30:00.000Z",
+        "duration": 2.9992675,
+        "earlyLeaveMinutes": 234,
+        "employee": "694e66a00d88280242b2dc5e",
+        "employeeId": "EMP0002",
+        "formattedDate": "2025-12-26",
+        "id": "694f701b911f9aaf27d334a4",
+        "isAutoClockOut": false,
+        "isEarlyLeave": true,
+        "isLate": true,
+        "lateMinutes": 125,
+        "locationAccuracy": "medium",
+        "netHours": 2.9992675,
+        "notes": "Clocking out via mobile app",
+        "overtimeHours": 0,
+        "status": "present",
+        "syncAttempts": 0,
+        "synced": true,
+        "totalHours": 2.9992675,
+        "updatedAt": "2025-12-27T08:35:21.221Z"
+    }
+]

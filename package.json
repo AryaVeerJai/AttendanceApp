@@ -1,19 +1,47 @@
 {
-  "name": "employeeattendanceapp",
-  "license": "0BSD",
+  "name": "EmployeeAttendanceApp",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "node_modules/expo/AppEntry.js",
   "scripts": {
     "start": "expo start",
-    "android": "expo start --android",
-    "ios": "expo start --ios",
-    "web": "expo start --web"
+    "android": "expo run:android",
+    "ios": "expo run:ios",
+    "web": "expo start --web",
+    "eject": "expo eject",
+    "build:android": "eas build -p android",
+    "build:ios": "eas build -p ios"
   },
   "dependencies": {
-    "expo": "~54.0.30",
-    "expo-status-bar": "~3.0.9",
-    "react": "19.1.0",
-    "react-native": "0.81.5"
+    "@expo/vector-icons": "^14.0.0",
+    "@react-native-async-storage/async-storage": "1.21.0",
+    "@react-native-community/netinfo": "11.1.0",
+    "@react-navigation/native": "^6.1.7",
+    "@react-navigation/stack": "^6.3.17",
+    "axios": "^1.5.0",
+    "expo": "50",
+    "expo-background-fetch": "~11.8.1",
+    "expo-battery": "~7.7.2",
+    "expo-device": "~5.9.4",
+    "expo-font": "~11.10.3",
+    "expo-location": "~16.5.5",
+    "expo-notifications": "~0.27.8",
+    "expo-splash-screen": "~0.26.5",
+    "expo-status-bar": "~1.11.1",
+    "expo-task-manager": "~11.7.3",
+    "moment": "^2.29.4",
+    "react": "18.2.0",
+    "react-native": "0.73.6",
+    "react-native-background-timer": "^2.4.1",
+    "react-native-dotenv": "^3.4.11",
+    "react-native-geolocation-service": "^5.3.1",
+    "react-native-gesture-handler": "~2.14.0",
+    "react-native-maps": "1.10.0",
+    "react-native-reanimated": "~3.6.2",
+    "react-native-safe-area-context": "4.8.2",
+    "react-native-screens": "~3.29.0"
+  },
+  "devDependencies": {
+    "@babel/core": "^7.20.0"
   },
   "private": true
 }
