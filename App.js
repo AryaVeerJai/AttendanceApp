@@ -8,6 +8,7 @@ import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
 import NotificationScheduler from './src/components/NotificationScheduler';
 
+
 // Screens
 import LoginScreen from './src/screens/LoginScreen';
 import AttendanceScreen from './src/screens/AttendanceScreen';
@@ -15,6 +16,7 @@ import ProfileScreen from './src/screens/ProfileScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
 import LocationTracker from './src/components/LocationTracker';
 import { getDeviceId, getDeviceInfo } from './src/utils/deviceHelper';
+import logger from './src/utils/logger';
 
 // const apiUrl = import.meta.env.EXPO_PUBLIC_API_URL;
 // import { EXPO_PUBLIC_API_URL } from '@env';
@@ -26,25 +28,33 @@ const EXPO_PUBLIC_API_URL = "http://143.244.137.105:8082/"
 const LOCATION_TASK_NAME = 'background-location-task';
 
 TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
-  console.log('🔔 ===== BACKGROUND TASK TRIGGERED =====');
-  console.log('⏰ Time:', new Date().toLocaleString());
+  logger.background('BACKGROUND TASK TRIGGERED', new Date().toLocaleString());
+  // console.log('🔔 ===== BACKGROUND TASK TRIGGERED =====');
+  // console.log('⏰ Time:', new Date().toLocaleString());
   if (error) {
-    console.error('Location task error:', error);
+    // console.error('Location task error:', error);
+    logger.error('Location task error:', error);
     return;
   }
   
   if (data) {
     const { locations } = data;
-    console.log(`📍 Received ${locations?.length} location(s)`);
+    // console.log(`📍 Received ${locations?.length} location(s)`);
 
     const location = locations[0];
     
     if (location) {
-      console.log('📌 Location:', {
-        lat: location.coords.latitude,
-        lng: location.coords.longitude,
-        accuracy: location.coords.accuracy,
-        timestamp: new Date(location.timestamp).toLocaleString()
+      // console.log('📌 Location:', {
+      //   lat: location.coords.latitude,
+      //   lng: location.coords.longitude,
+      //   accuracy: location.coords.accuracy,
+      //   timestamp: new Date(location.timestamp).toLocaleString()
+      // });
+
+      logger.location('Background location captured', {
+        lat: location.coords.latitude.toFixed(4),
+        lng: location.coords.longitude.toFixed(4),
+        accuracy: location.coords.accuracy
       });
 
       // Send location to backend
@@ -52,7 +62,8 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
     }
   }
 
-  console.log('✅ ===== TASK COMPLETED =====');
+  // console.log('✅ ===== TASK COMPLETED =====');
+  logger.background('TASK COMPLETED', new Date().toLocaleString());
 });
 
 async function sendLocationToBackend(location) {
@@ -83,7 +94,8 @@ async function sendLocationToBackend(location) {
       });
     }
   } catch (error) {
-    console.log('Error sending location:', error);
+    // console.log('Error sending location:', error);
+    logger.error('Background location error:', error.message);
     // console.error('Error sending location:', error);
   }
 }
@@ -178,7 +190,7 @@ const setupNotifications = async () => {
       return;
     }
     
-    console.log('Notification permissions granted');
+    // console.log('Notification permissions granted');
     
     // Set notification handler
     Notifications.setNotificationHandler({

@@ -3,6 +3,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import NetInfo from '@react-native-community/netinfo';
 import Constants from 'expo-constants';
 import * as Device from 'expo-device';
+import logger from '../utils/logger';
 // import { EXPO_PUBLIC_API_URL } from '@env';
 
 
@@ -13,7 +14,7 @@ const MIN_UPDATE_INTERVAL = 30000; // 30 seconds
 
 
 const API_BASE_URL = `http://143.244.137.105:8082/api`;
-console.log('🌐 API Base URL:', API_BASE_URL);
+// console.log('🌐 API Base URL:', API_BASE_URL);
 
 const api = axios.create({
   baseURL: API_BASE_URL,
@@ -52,13 +53,15 @@ api.interceptors.request.use(
     config.headers['x-device-type'] = Device.osName || 'Unknown OS';
     config.headers['x-os-version'] = Device.osVersion || 'Unknown Version';
     
-    console.log('📤 Request:', config.method.toUpperCase(), config.url);
-    console.log('📱 Device ID:', deviceId);
+    // console.log('📤 Request:', config.method.toUpperCase(), config.url);
+    logger.api(`${config.method.toUpperCase()} ${config.url}`,'from api.js');
+    // console.log('📱 Device ID:', deviceId);
     
     return config;
   },
   (error) => {
-    console.log('❌ Request Interceptor Error:', error);
+    // console.log('❌ Request Interceptor Error:', error);
+    logger.error('Request error:', error);
     return Promise.reject(error);
   }
 );
@@ -66,19 +69,26 @@ api.interceptors.request.use(
 // Response interceptor for better error logging
 api.interceptors.response.use(
   (response) => {
-    console.log('✅ Response Success:', response.config.url, response.status);
+    logger.debug(`Response: ${response.config.url} [${response.status}]`);
+    // console.log('✅ Response Success:', response.config.url, response.status);
     return response;
   },
   async (error) => {
-    console.log('❌ Response Error:', {
+    // console.log('❌ Response Error:', {
+    //   url: error.config?.url,
+    //   status: error.response?.status,
+    //   message: error.response?.data?.message,
+    //   data: error.response?.data,
+    // });
+    logger.error('API Error', {
       url: error.config?.url,
       status: error.response?.status,
       message: error.response?.data?.message,
-      data: error.response?.data,
     });
     
     if (error.response?.status === 401 || error.response?.status === 403) {
-      console.log('🚫 Authentication failed - clearing user data');
+      // console.log('🚫 Authentication failed - clearing user data');
+      logger.warn('Authentication failed - clearing user data');
       await AsyncStorage.removeItem('userData');
       // Note: Navigation to login should be handled by the app
     }
@@ -166,7 +176,8 @@ export const locationAPI = {
       const networkState = await NetInfo.fetch();
       
       if (!networkState.isConnected) {
-        console.log('📴 No network - storing location offline');
+        logger.warn('No network - skipping sync');
+        // console.log('📴 No network - storing location offline');
         await storeLocationOffline(locationData);
         return { success: false, offline: true };
       }
@@ -215,7 +226,8 @@ const storeLocationOffline = async (locationData) => {
 // Sync offline data when connection is restored
 export const syncOfflineData = async () => {
   try {
-    console.log('🔄 Starting offline data sync...');
+    logger.info('Starting offline data sync');
+    // console.log('🔄 Starting offline data sync...');
     const networkState = await NetInfo.fetch();
     
     if (!networkState.isConnected) {
@@ -280,7 +292,8 @@ export const syncOfflineData = async () => {
     await AsyncStorage.setItem('offlineLocations', JSON.stringify(locationList));
     await AsyncStorage.setItem('offlineAttendance', JSON.stringify(attendanceList));
     
-    console.log(`✅ Sync complete - ${syncedCount} synced, ${skippedCount} skipped`);
+    // console.log(`✅ Sync complete - ${syncedCount} synced, ${skippedCount} skipped`);
+    logger.info(`Sync complete - ${syncedCount} synced, ${skippedCount} skipped`);
     return { success: true, syncedCount, skippedCount };
   } catch (error) {
     console.error('Error syncing offline data:', error);

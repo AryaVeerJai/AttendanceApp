@@ -13,7 +13,7 @@ const NotificationScheduler = () => {
     try {
       const scheduled = await AsyncStorage.getItem('notificationsScheduled');
       if (scheduled === 'true') {
-        console.log('Notifications already scheduled');
+        // console.log('Notifications already scheduled');
         return;
       }
 

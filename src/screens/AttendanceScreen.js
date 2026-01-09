@@ -26,6 +26,8 @@ import * as Device from 'expo-device';
 import Constants from 'expo-constants';
 import { getDeviceId, getDeviceInfo } from '../utils/deviceHelper';
 import * as Notifications from 'expo-notifications';
+import { FullScreenLoader } from '../components/FullScreenLoader';
+import { SpinnerLoader } from '../components/Loaders';
 
 export default function AttendanceScreen({ navigation }) {
   const [isClockedIn, setIsClockedIn] = useState(false);
@@ -112,12 +114,14 @@ const getAddressFromCoordinates = async (lat, lon) => {
   };
 
   const checkCurrentStatus = async () => {
+    setLoading(true)
     try {
       const status = await getCurrentStatus();
       setIsClockedIn(status?.isClockedIn);
       setIsClockedOut(status?.isClockedOut);
       // console.log("Current status:", status);
       setAttendanceRecord(status?.currentRecord);
+    setLoading(false)
     } catch (error) {
       console.error('Error checking status:', error);
     }
@@ -331,8 +335,13 @@ const handleClockOut = async () => {
   );
 };
 
+  if (loading) {
+    return <SpinnerLoader text="Loading attendance..." color="#4CAF50" />;
+  }
+
   return (
     <ScrollView style={styles.container}>
+      {/* <FullScreenLoader visible={loading} text="Syncing data..." /> */}
       <View style={styles.header}>
         <Text style={styles.welcomeText}>
           Welcome, {userData?.name || 'Employee'}
