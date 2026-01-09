@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Employee Attendance Tracker",
+    "name": "Employee Attendance",
     "slug": "employee-attendance-tracker",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -41,10 +41,14 @@
         "ACCESS_COARSE_LOCATION",
         "ACCESS_BACKGROUND_LOCATION",
         "FOREGROUND_SERVICE",
+        "FOREGROUND_SERVICE_LOCATION",
         "WAKE_LOCK",
         "RECEIVE_BOOT_COMPLETED",
         "VIBRATE",
-        "POST_NOTIFICATIONS"
+        "POST_NOTIFICATIONS",
+        "SCHEDULE_EXACT_ALARM",
+        "USE_EXACT_ALARM",
+        "INTERNET"
       ],
       "config": {
         "googleMaps": {
@@ -57,7 +61,8 @@
         "expo-location",
         {
           "locationAlwaysAndWhenInUsePermission": "Allow $(PRODUCT_NAME) to use your location for attendance tracking.",
-          "isAndroidBackgroundLocationEnabled": true
+          "isAndroidBackgroundLocationEnabled": true,
+          "isIosBackgroundLocationEnabled": true
         }
       ],
       [

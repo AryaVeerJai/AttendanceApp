@@ -10,8 +10,7 @@ import {
   Image,
   Pressable,
   Linking,
-  Platform,
-  TextInput,
+  Platform
 } from 'react-native';
 import * as Location from 'expo-location';
 import { MaterialIcons } from '@expo/vector-icons';
@@ -35,10 +34,28 @@ export default function AttendanceScreen({ navigation }) {
   const [attendanceRecord, setAttendanceRecord] = useState(null);
   const [userData, setUserData] = useState(null);
   const [formattedAddress, setFormattedAddress] = useState('Loading location...');
-  const [clockOutNote, setClockOutNote] = useState('');
+
+  // Utility function to fetch address from coordinates using OpenStreetMap
+  // const getAddressFromCoordinates = async (lat, lon) => {
+  //   try {
+  //     const response = await fetch(
+  //       `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`
+  //     );
+      
+  //     if (!response.ok) {
+  //       throw new Error('Failed to fetch address');
+  //     }
+      
+  //     const data = await response.json();
+  //     return data.display_name || 'Location not available';
+  //   } catch (error) {
+  //     console.error('Error fetching address:', error);
+  //     return 'Location not available';
+  //   }
+  // };
 
 
-// Update the getAddressFromCoordinates function with proper headers and error handling
+  // Update the getAddressFromCoordinates function with proper headers and error handling
 const getAddressFromCoordinates = async (lat, lon) => {
   try {
     const response = await fetch(
@@ -93,7 +110,7 @@ const getAddressFromCoordinates = async (lat, lon) => {
   useEffect(() => {
     const fetchCurrentLocationAddress = async () => {
       if (attendanceRecord?.clockIn?.location?.coordinates) {
-        const [lon, lat] = attendanceRecord?.clockIn?.location?.coordinates;
+        const [lon, lat] = attendanceRecord.clockIn.location.coordinates;
         const address = await getAddressFromCoordinates(lat, lon);
         setFormattedAddress(address);
       }
@@ -139,6 +156,141 @@ const getAddressFromCoordinates = async (lat, lon) => {
     await syncOfflineData();
   };
 
+  // const handleClockIn = async () => {
+  //   const deviceId = await getDeviceIdLocal();
+  //   const deviceInfo = getDeviceInfo();
+    
+  //   if (!currentLocation) {
+  //     Alert.alert('Error', 'Unable to get your location. Please try again.');
+  //     return;
+  //   }
+
+  //   setLoading(true);
+  //   try {
+  //     // Fetch address using OpenStreetMap
+  //     const address = await getAddressFromCoordinates(
+  //       currentLocation.coords.latitude,
+  //       currentLocation.coords.longitude
+  //     );
+
+  //     const result = await markAttendance({
+  //       type: 'clock_in',
+  //       latitude: currentLocation.coords.latitude,
+  //       longitude: currentLocation.coords.longitude,
+  //       timestamp: new Date().toISOString(),
+  //       address: address,
+  //       deviceId: deviceId,
+  //       accuracy: currentLocation.coords.accuracy,
+  //       batteryLevel: 35,
+  //       notes: 'Clocking in via mobile app',
+  //     });
+
+  //     console.log("Clock in result:", result);
+
+  //     if (result.success) {
+  //       setIsClockedIn(true);
+  //       setAttendanceRecord(result.record);
+  //       setFormattedAddress(address);
+  //       Alert.alert('Success', 'Clock in successful!');
+  //     } else {
+  //       Alert.alert('Error', result.message || 'Failed to clock in');
+  //     }
+  //   } catch (error) {
+  //     console.error('Error marking attendance:', error);
+  //     Alert.alert('Error', 'Network error. Attendance saved offline.');
+  //     await saveAttendanceOffline('clock_in');
+  //   } finally {
+  //     setLoading(false);
+  //   }
+  // };
+
+  // const handleClockIn = async () => {
+
+  //         Alert.alert(
+  //   'Confirm Clock In',
+  //   'Are you sure you want to clock in?',
+  //   [
+  //     {
+  //       text: 'Cancel',
+  //       style: 'cancel',
+  //     },
+  //     {
+  //       text: 'Yes, Clock In',
+  //       style: 'destructive',
+  //       onPress: async () => {
+  // const deviceId = await getDeviceIdLocal();
+  // const deviceInfo = getDeviceInfo();
+
+  // if (!currentLocation) {
+  //   Alert.alert('Error', 'Unable to get your location. Please try again.');
+  //   return;
+  // }
+
+  // const { latitude, longitude, accuracy } = currentLocation.coords;
+
+  // setLoading(true);
+  // try {
+  //   // 🔹 Reverse geocoding using OpenStreetMap (Nominatim)
+  //   const response = await fetch(
+  //     `https://nominatim.openstreetmap.org/reverse?lat=${latitude}&lon=${longitude}&format=json`,
+  //     {
+  //       headers: {
+  //         // Required by Nominatim usage policy
+  //         'User-Agent': 'AttendanceApp/1.0 (jai.webshark@gmail.com)',
+  //       },
+  //     }
+  //   );
+
+  //   if (!response.ok) {
+  //     throw new Error('Failed to fetch address');
+  //   }
+
+  //   const locationData = await response.json();
+
+  //   const address =
+  //     locationData.display_name || 'Address not available';
+
+  //   // 🔹 Send attendance data to backend
+  //   const result = await markAttendance({
+  //     type: 'clock_in',
+  //     latitude,
+  //     longitude,
+  //     timestamp: new Date().toISOString(),
+  //     address,
+  //     accuracy,
+  //     deviceId,
+  //     batteryLevel: 35,
+  //     notes: 'Clocking in via mobile app',
+  //   });
+
+  //   // console.log('Clock in result:', result);
+
+  //   if (result.success) {
+  //     console.log('Clock in successful:', result);
+  //     setIsClockedIn(true);
+  //     setAttendanceRecord(result.record);
+  //     setFormattedAddress(address);
+  //     Alert.alert('Success', 'Clock in successful!');
+  //   }
+  //   if (result.status === 'already_clocked_in') {
+  //     setIsClockedOut(true);
+  //     console.log('Already clocked in:');
+  //     Alert.alert('Error', 'Already clocked in for today.');
+  //   }
+  //    else {
+  //     console.log('Clock in failed: 281', result);
+  //     Alert.alert('Error', result.message || 'Failed to clock in');
+  //   }
+  // } catch (error) {
+  //   console.error('Error marking attendance 275:', error);
+  //   Alert.alert('Error', 'Network error. Attendance saved offline.');
+  //   await saveAttendanceOffline('clock_in');
+  // } finally {
+  //   setLoading(false);
+  // }
+  // },}],{ cancelable: true }
+  // );
+  // };
 
   const handleClockIn = async () => {
   Alert.alert(
@@ -200,8 +352,7 @@ const getAddressFromCoordinates = async (lat, lon) => {
             } 
             else if (result.status === 'already_clocked_in') {
               setIsClockedIn(true);
-              Alert.alert('Success', 'Clock in successful!');
-              // Alert.alert('Info', 'You are already clocked in for today.');
+              Alert.alert('Info', 'You are already clocked in for today.');
             } 
             else {
               Alert.alert('Error', result.message || 'Failed to clock in');
@@ -220,18 +371,73 @@ const getAddressFromCoordinates = async (lat, lon) => {
   );
 };
 
-// console.log(attendanceRecord.clockIn.address)
 
+//   const handleClockOut = async () => {
+
+//       Alert.alert(
+//     'Confirm Clock Out',
+//     'Are you sure you want to clock out?',
+//     [
+//       {
+//         text: 'Cancel',
+//         style: 'cancel',
+//       },
+//       {
+//         text: 'Yes, Clock Out',
+//         style: 'destructive',
+//         onPress: async () => {
+    
+//     const deviceId = await getDeviceIdLocal();
+//     const deviceInfo = getDeviceInfo();
+    
+//     if (!currentLocation) {
+//       Alert.alert('Error', 'Unable to get your location. Please try again.');
+//       return;
+//     }
+
+//     setLoading(true);
+//     try {
+//       // Fetch address using OpenStreetMap
+//       const address = await getAddressFromCoordinates(
+//         currentLocation.coords.latitude,
+//         currentLocation.coords.longitude
+//       );
+
+//       const result = await markAttendance({
+//         type: 'clock_out',
+//         latitude: currentLocation.coords.latitude,
+//         longitude: currentLocation.coords.longitude,
+//         timestamp: new Date().toISOString(),
+//         address: address,
+//         deviceId: deviceId,
+//         accuracy: currentLocation.coords.accuracy,
+//         batteryLevel: 35,
+//         notes: 'Clocking out via mobile app',
+//       });
+
+//       // console.log("Clock out result:", result);
+
+//       if (result.success) {
+//         // console.log('Clock out successful:', result);
+//         setIsClockedIn(false);
+//         Alert.alert('Success', 'Clock out successful!');
+//         setAttendanceRecord(null);
+//         setFormattedAddress('Location not available');
+//       } else {
+//         Alert.alert('Error', result.message || 'Failed to clock out');
+//       }
+//     } catch (error) {
+//       Alert.alert('Error', 'Network error. Attendance saved offline.');
+//       await saveAttendanceOffline('clock_out');
+//     } finally {
+//       setLoading(false);
+//     }
+//   },
+// }],{ cancelable: true }
+// );
+//   };
 
 const handleClockOut = async () => {
-    if (!clockOutNote) {
-      // console.log(clockOutNote)
-    Alert.alert(
-      'Clock out Note Required!',
-      'Please enter clock out note before clock out.'
-    );
-    return; // ✅ stop here
-  }
   Alert.alert(
     'Confirm Clock Out',
     'Are you sure you want to clock out?',
@@ -264,7 +470,7 @@ const handleClockOut = async () => {
               accuracy,
               deviceId,
               batteryLevel: 35,
-              notes: clockOutNote,
+              notes: 'Clocking out via mobile app',
             });
 
             if (result.success) {
@@ -343,6 +549,17 @@ const handleClockOut = async () => {
       </View>
 
       {currentLocation && (
+        // <View style={styles.mapContainer}>
+        //   <View style={styles.locationInfo}>
+        //     <MaterialIcons name="location-on" size={20} color="#666" />
+        //     <Text style={styles.locationText}>
+        //       Latitude: {currentLocation.coords.latitude.toFixed(6)}
+        //     </Text>
+        //     <Text style={styles.locationText}>
+        //       Longitude: {currentLocation.coords.longitude.toFixed(6)}
+        //     </Text>
+        //   </View>
+        // </View>
         <Pressable
           onPress={() =>
             openInGoogleMaps(
@@ -380,7 +597,7 @@ const handleClockOut = async () => {
             <View style={styles.infoRow}>
               <MaterialIcons name="schedule" size={18} color="#666" />
               <Text style={styles.infoText}>
-                Clock in: {moment(attendanceRecord?.clockIn?.time || attendanceRecord?.clock_in).format('hh:mm A')}
+                Clock in: {moment(attendanceRecord.clockIn?.time || attendanceRecord.clock_in).format('hh:mm A')}
               </Text>
             </View>
             <View style={styles.infoRow}>
@@ -406,13 +623,12 @@ const handleClockOut = async () => {
                 Clock out: {moment(attendanceRecord?.clockOut?.time || attendanceRecord?.clock_out).format('hh:mm A')}
               </Text>
             </View>
-            <View style={styles.infoRow}>
+            {/* <View style={styles.infoRow}>
               <MaterialIcons name="location-on" size={18} color="#666" />
               <Text style={styles.infoText} numberOfLines={2}>
-                {/* {formattedAddress} */}
-                {attendanceRecord?.clockIn?.address}
+                {formattedAddress}
               </Text>
-            </View>
+            </View> */}
           </View>
         </View>
       )}
@@ -434,32 +650,20 @@ const handleClockOut = async () => {
             )}
           </TouchableOpacity>
         ) : !isClockedOut ? (
-          <>
-            <View style={styles.textInputContainer}>
-              <Text style={styles.shiftTitle}>Clock Out Note</Text>
-              <TextInput
-                style={styles.textInput}
-                placeholder="Enter clock-out note..."
-                value={clockOutNote}
-                onChangeText={setClockOutNote}
-                multiline
-              />
-            </View>
-            <TouchableOpacity
-              style={[styles.button, styles.clockOutButton]}
-              onPress={handleClockOut}
-              disabled={loading}
-            >
-              {loading ? (
-                <ActivityIndicator color="#fff" />
-              ) : (
-                <>
-                  <MaterialIcons name="logout" size={24} color="#fff" />
-                  <Text style={styles.buttonText}>Clock Out</Text>
-                </>
-              )}
-            </TouchableOpacity>
-          </>
+          <TouchableOpacity
+            style={[styles.button, styles.clockOutButton]}
+            onPress={handleClockOut}
+            disabled={loading}
+          >
+            {loading ? (
+              <ActivityIndicator color="#fff" />
+            ) : (
+              <>
+                <MaterialIcons name="logout" size={24} color="#fff" />
+                <Text style={styles.buttonText}>Clock Out</Text>
+              </>
+            )}
+          </TouchableOpacity>
         ): null}
       </View>
 
@@ -543,17 +747,6 @@ const styles = StyleSheet.create({
   },
   currentShiftContainer: {
     margin: 15,
-    backgroundColor: '#fff',
-    borderRadius: 10,
-    padding: 15,
-    elevation: 2,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.1,
-    shadowRadius: 3,
-  },
-  textInputContainer: {
-    marginBottom: 10,
     backgroundColor: '#fff',
     borderRadius: 10,
     padding: 15,

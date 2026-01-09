@@ -1,5 +1,26 @@
+// import { StatusBar } from 'expo-status-bar';
+// import { StyleSheet, Text, View } from 'react-native';
+
+// export default function App() {
+//   return (
+//     <View style={styles.container}>
+//       <Text>Open up App.js to start working on your app!</Text>
+//       <StatusBar style="auto" />
+//     </View>
+//   );
+// }
+
+// const styles = StyleSheet.create({
+//   container: {
+//     flex: 1,
+//     backgroundColor: '#fff',
+//     alignItems: 'center',
+//     justifyContent: 'center',
+//   },
+// });
+
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, AppState } from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -17,17 +38,14 @@ import LocationTracker from './src/components/LocationTracker';
 import { getDeviceId, getDeviceInfo } from './src/utils/deviceHelper';
 
 // const apiUrl = import.meta.env.EXPO_PUBLIC_API_URL;
-// import { EXPO_PUBLIC_API_URL } from '@env';
+import { EXPO_PUBLIC_API_URL } from '@env';
 
 const Stack = createStackNavigator();
-const EXPO_PUBLIC_API_URL = "http://143.244.137.105:8082/"
 
 // Background location task
 const LOCATION_TASK_NAME = 'background-location-task';
 
 TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
-  console.log('🔔 ===== BACKGROUND TASK TRIGGERED =====');
-  console.log('⏰ Time:', new Date().toLocaleString());
   if (error) {
     console.error('Location task error:', error);
     return;
@@ -35,24 +53,13 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
   
   if (data) {
     const { locations } = data;
-    console.log(`📍 Received ${locations?.length} location(s)`);
-
     const location = locations[0];
     
     if (location) {
-      console.log('📌 Location:', {
-        lat: location.coords.latitude,
-        lng: location.coords.longitude,
-        accuracy: location.coords.accuracy,
-        timestamp: new Date(location.timestamp).toLocaleString()
-      });
-
       // Send location to backend
       await sendLocationToBackend(location);
     }
   }
-
-  console.log('✅ ===== TASK COMPLETED =====');
 });
 
 async function sendLocationToBackend(location) {
@@ -99,26 +106,22 @@ export default function App() {
     requestPermissions();
     setupNotifications();
 
+        
     // Listeners for notifications
-    notificationListener.current =
-      Notifications.addNotificationReceivedListener((notification) => {
-        console.log("Notification received:", notification);
-      });
+    notificationListener.current = Notifications.addNotificationReceivedListener(notification => {
+      console.log('Notification received:', notification);
+    });
 
-    responseListener.current =
-      Notifications.addNotificationResponseReceivedListener((response) => {
-        console.log("Notification response:", response);
-      });
+    responseListener.current = Notifications.addNotificationResponseReceivedListener(response => {
+      console.log('Notification response:', response);
+    });
 
     return () => {
-      Notifications.removeNotificationSubscription(
-        notificationListener.current
-      );
+      Notifications.removeNotificationSubscription(notificationListener.current);
       Notifications.removeNotificationSubscription(responseListener.current);
     };
-  }, []);
 
-  
+  }, []);
 
   const checkLoginStatus = async () => {
     // Check if user is logged in from AsyncStorage
@@ -128,47 +131,41 @@ export default function App() {
 
   const requestPermissions = async () => {
     const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
-
-    if (foregroundStatus !== "granted") {
-      Alert.alert(
-        "Permission Required",
-        "Location permission is required for attendance tracking"
-      );
-      return;
-    }
-
-    // Request background location
     const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
-
-    if (backgroundStatus !== 'granted') {
-      Alert.alert(
-        'Background Permission Required',
-        'Please enable "Allow all the time" in location settings for attendance tracking to work when the app is closed.'
-      );
-    }
     
     setLocationPermission(foregroundStatus === 'granted');
     
     if (backgroundStatus === 'granted') {
       await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
         accuracy: Location.Accuracy.Balanced,
-        // timeInterval: 30000, // Update every 30 seconds
-        // distanceInterval: 50, // Update every 50 meters
-        timeInterval: 300000, // 5 minutes (300 seconds)
-        distanceInterval: 100, // 100 meters
-        deferredUpdatesInterval: 300000,
-        deferredUpdatesDistance: 100,
-        // ✅ CRITICAL for Android - Shows persistent notification
-        foregroundService: {
-          notificationTitle: 'Attendance Tracking Active',
-          notificationBody: 'Tracking your location for work attendance',
-          notificationColor: '#4CAF50',
-        },
+        timeInterval: 30000, // Update every 30 seconds
+        distanceInterval: 50, // Update every 50 meters
         showsBackgroundLocationIndicator: true,
-        pausesUpdatesAutomatically: false,
       });
     }
   };
+
+  // const setupNotifications = async () => {
+  //   const { status } = await Notifications.requestPermissionsAsync();
+  //   if (status !== 'granted') {
+  //     alert('Failed to get push token for notifications!');
+  //   }
+  // };
+
+//   const setupNotifications = async () => {
+//   try {
+//     const { status } = await Notifications.requestPermissionsAsync();
+//     if (status !== 'granted') {
+//       console.log('Notification permissions not granted');
+//       // Don't show alert, just log it
+//     } else {
+//       console.log('Notification permissions granted');
+//     }
+//   } catch (error) {
+//     console.log('Notifications not available:', error.message);
+//     // App continues to work without notifications - no alert needed
+//   }
+// };
 
 const setupNotifications = async () => {
   try {
@@ -201,7 +198,6 @@ const setupNotifications = async () => {
     console.log('Notifications not available:', error.message);
   }
 };
-
 
   return (
     <SafeAreaProvider>
@@ -257,7 +253,7 @@ const setupNotifications = async () => {
           )}
         </Stack.Navigator>
       </NavigationContainer>
-      {/* {isLoggedIn && locationPermission && <LocationTracker />} */}
+      {isLoggedIn && locationPermission && <LocationTracker />}
       {isLoggedIn && <NotificationScheduler />}
     </SafeAreaProvider>
   );

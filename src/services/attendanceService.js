@@ -317,16 +317,25 @@ export const attendanceService = {
       }
 
       // Online - send to server
+      console.log("Attendance marked successfully: 321");
       const response = await attendanceAPI.markAttendance(data);
-      // console.log("Attendance marked successfully:", response);
       
       // Fix: Backend returns { status: 'success', data: { attendance } }
+      // console.log("Attendance API response: 324", response.status);
       if (response.status === 'success') {
+        // console.log("Attendance marked successfully: 325", response);
         await clearPendingAttendanceForToday();
         return {
           success: true,
           record: response.data.attendance,
           message: response.message,
+        };
+      } if (response.status === 'already_clocked_in') {
+        return {
+          status: 'already_clocked_in',
+          success: false, 
+          message: response.message || 'Failed to mark attendance',
+          record: response.data,
         };
       }
       
@@ -336,7 +345,7 @@ export const attendanceService = {
         message: response.message || 'Failed to mark attendance',
       };
     } catch (error) {
-      console.error('Error marking attendance:', error);
+      console.error('Error marking attendance 339:', error);
       
       // Save offline on error
       await storeAttendanceOffline(data);
@@ -352,7 +361,7 @@ export const attendanceService = {
 
   // Get current attendance status
   getCurrentStatus: async () => {
-    console.log("Fetching current attendance status");
+    // console.log("Fetching current attendance status");
     try {
       const userData = await AsyncStorage.getItem('userData');
       // console.log("User data from storage:", userData);
@@ -390,8 +399,16 @@ export const attendanceService = {
       const networkState = await NetInfo.fetch();
       if (networkState.isConnected) {
         const response = await attendanceAPI.getCurrentStatus();
+
+        // console.log("Current status API response: 403", response);
         
         // Fix: Handle backend response structure
+        if (response.data?.currentRecord?.attendanceStatus === 'clocked_out') {
+          return {
+            isClockedOut: true,
+            currentRecord: response.data.currentRecord,
+          };
+        }
         if (response.status === 'success' && response.data) {
           // console.log("Online current status:", response.data);
           return {

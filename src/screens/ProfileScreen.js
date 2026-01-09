@@ -139,7 +139,7 @@ export default function ProfileScreen({ navigation, onLogoutSuccess }) {
   const handleViewHelp = () => {
     Alert.alert(
       'Help & Support',
-      'For assistance:\n\n1. Contact your manager\n2. Email: support@company.com\n3. Phone: +1 (555) 123-4567',
+      'For assistance:\n\n1. Contact your manager\n2. Email: accounts@wattnengineering.com\n3. Phone: 7996712058',
       [{ text: 'OK' }]
     );
   };
