@@ -4,8 +4,12 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Platform } from 'react-native';
 import NetInfo from '@react-native-community/netinfo';
 import { locationAPI } from './api';
+import * as Battery from 'expo-battery';
 
 const LOCATION_TASK_NAME = 'background-location-task';
+let cachedPermissions = null;
+let lastGeocodeTime = 0;
+const GEOCODE_INTERVAL = 2 * 60 * 1000; // 2 minutes
 
 export const locationService = {
   // Request location permissions
@@ -33,7 +37,8 @@ export const locationService = {
   // Start background location tracking
   startBackgroundTracking: async () => {
     try {
-      const { granted } = await locationService.requestPermissions();
+      // const { granted } = await locationService.requestPermissions();
+      const { granted } = await getCachedPermissions();
       
       if (!granted) {
         throw new Error('Location permissions not granted');
@@ -147,7 +152,17 @@ export const locationService = {
           ...options,
         },
         async (location) => {
-          const address = await locationService.getAddressFromCoords(location.coords);
+          // const address = await locationService.getAddressFromCoords(location.coords);
+          // callback({
+          //   ...location,
+          //   address,
+          // });
+          let address = null;
+
+          if (shouldReverseGeocode()) {
+            address = await locationService.getAddressFromCoords(location.coords);
+          }
+
           callback({
             ...location,
             address,
@@ -160,6 +175,21 @@ export const locationService = {
       console.error('Error watching location:', error);
       throw error;
     }
+  },
+
+  getCachedPermissions :  async () => {
+  if (cachedPermissions) return cachedPermissions;
+  cachedPermissions = await locationService.requestPermissions();
+  return cachedPermissions;
+  },
+
+  shouldReverseGeocode : () => {
+  const now = Date.now();
+  if (now - lastGeocodeTime > GEOCODE_INTERVAL) {
+    lastGeocodeTime = now;
+    return true;
+  }
+  return false;
   },
 
   // Send location update to server
@@ -184,6 +214,9 @@ export const locationService = {
       }
 
       const { employeeId } = JSON.parse(userData);
+
+      const batteryLevel = await Battery.getBatteryLevelAsync();
+      const batteryState = await Battery.getBatteryStateAsync();
       
       const response = await locationAPI.updateLocation({
         employeeId,
@@ -193,8 +226,8 @@ export const locationService = {
           version: Platform.Version,
           model: Platform.OS === 'ios' ? '' : '', // Add device model if needed
         },
-        batteryLevel: locationData.batteryLevel,
-        isCharging: locationData.isCharging || false,
+        batteryLevel: batteryLevel,
+        isCharging: batteryState,
       });
 
       // If successful, sync any pending offline locations
@@ -419,7 +452,7 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
           speed: location.coords.speed,
           heading: location.coords.heading,
           altitude: location.coords.altitude,
-          batteryLevel: location.coords.batteryLevel,
+          // batteryLevel: location.coords.batteryLevel,
           isBackground: true,
           timestamp: new Date().toISOString(),
         });

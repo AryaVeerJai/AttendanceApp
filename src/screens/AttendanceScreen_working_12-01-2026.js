@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef} from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   View,
   Text,
@@ -28,7 +28,6 @@ import { getDeviceId, getDeviceInfo } from '../utils/deviceHelper';
 import * as Notifications from 'expo-notifications';
 import { FullScreenLoader } from '../components/FullScreenLoader';
 import { SpinnerLoader } from '../components/Loaders';
-import * as Battery from 'expo-battery';
 
 export default function AttendanceScreen({ navigation }) {
   const [isClockedIn, setIsClockedIn] = useState(false);
@@ -39,263 +38,112 @@ export default function AttendanceScreen({ navigation }) {
   const [userData, setUserData] = useState(null);
   const [formattedAddress, setFormattedAddress] = useState('Loading location...');
   const [clockOutNote, setClockOutNote] = useState('');
-  const [refreshing, setRefreshing] = useState(false);
-  const cachedAddresses = useRef({});
 
 
-  let lastNominatimCall = 0;
-  const NOMINATIM_DELAY = 1100; // 1.1 sec
-
-  const waitIfNeeded = async () => {
-    const now = Date.now();
-    const diff = now - lastNominatimCall;
-    if (diff < NOMINATIM_DELAY) {
-      await new Promise(r => setTimeout(r, NOMINATIM_DELAY - diff));
-    }
-    lastNominatimCall = Date.now();
-  };
-
-
+// Update the getAddressFromCoordinates function with proper headers and error handling
 const getAddressFromCoordinates = async (lat, lon) => {
   try {
-    await waitIfNeeded();
-
-    const controller = new AbortController();
-    setTimeout(() => controller.abort(), 5000);
-
     const response = await fetch(
       `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json`,
       {
         headers: {
-          'User-Agent': 'AttendanceApp/1.0 (jai.webshark@gmail.com)',
+          'User-Agent': 'AttendanceApp/1.0 (jai.webshark@gmail.com)', // Required by Nominatim
+          // 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/143.0.0.0 Safari/537.36', // Required by Nominatim
         },
-        signal: controller.signal,
       }
     );
-
+    
     if (!response.ok) {
+      console.error('Nominatim API error:', response.status);
+      // Fallback to a simpler address format
       return `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
     }
-
+    
     const data = await response.json();
     return data.display_name || `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
   } catch (error) {
+    console.error('Error fetching address:', error);
+    // Return coordinates as fallback
     return `Lat: ${lat.toFixed(4)}, Lon: ${lon.toFixed(4)}`;
   }
 };
 
-
-
+  // Get device ID
   const getDeviceIdLocal = async () => {
-  let deviceId = await AsyncStorage.getItem('deviceId');
-
-  if (!deviceId) {
-    deviceId = `${Device.modelName || 'device'}-${Device.osInternalBuildId || Date.now()}`;
-    await AsyncStorage.setItem('deviceId', deviceId);
-  }
-
-  return deviceId;
-};
-
-
-//   useEffect(() => {
-//   const init = async () => {
-//     setLoading(true);
-//     await loadUserData();
-//     await checkCurrentStatus();
-//     await getCurrentPosition();
-//     await syncPendingData();
-//     setLoading(false);
-//   };
-
-//   init();
-// }, []);
-
-// Optimized initialization - run operations in parallel
-useEffect(() => {
-  const init = async () => {
-    setLoading(true);
-    
-    try {
-      // Run these in parallel - they don't depend on each other
-      const [userData, status] = await Promise.all([
-        loadUserData(),
-        checkCurrentStatus(),
-      ]);
-      
-      // Start location in background (don't wait for it)
-      getCurrentPosition();
-      
-      // Sync offline data in background (don't block UI)
-      syncPendingData();
-      
-    } catch (error) {
-      console.error('Initialization error:', error);
-    } finally {
-      setLoading(false);
+    let deviceId = await AsyncStorage.getItem('deviceId');
+    if (!deviceId) {
+      deviceId = Constants.deviceId || `${Device.modelName}-${Date.now()}`;
+      await AsyncStorage.setItem('deviceId', deviceId);
     }
+    return deviceId;
   };
 
-  init();
-}, []);
-
-
-  // Fetch formatted address when attendance record changes
-  // useEffect(() => {
-  //   const fetchCurrentLocationAddress = async () => {
-  //     if (attendanceRecord?.clockIn?.location?.coordinates) {
-  //       const [lon, lat] = attendanceRecord?.clockIn?.location?.coordinates;
-  //       const address = await getAddressFromCoordinates(lat, lon);
-  //       setFormattedAddress(address);
-  //     }
-  //   };
-
-  //   if (isClockedIn && attendanceRecord) {
-  //     fetchCurrentLocationAddress();
-  //   }
-  // }, [attendanceRecord, isClockedIn]);
 
   useEffect(() => {
-  const fetchCurrentLocationAddress = async () => {
-    if (attendanceRecord?.clockIn?.location?.coordinates) {
-      const [lon, lat] = attendanceRecord.clockIn.location.coordinates;
-      const cacheKey = `${lat.toFixed(4)},${lon.toFixed(4)}`;
-      
-      // Check cache first
-      if (cachedAddresses.current[cacheKey]) {
-        setFormattedAddress(cachedAddresses.current[cacheKey]);
-        return;
+    loadUserData();
+    checkCurrentStatus();
+    getCurrentPosition();
+    
+    const syncTimer = setTimeout(() => {
+      syncPendingData();
+    }, 5000);
+    
+    return () => clearTimeout(syncTimer);
+  }, []);
+
+  // Fetch formatted address when attendance record changes
+  useEffect(() => {
+    const fetchCurrentLocationAddress = async () => {
+      if (attendanceRecord?.clockIn?.location?.coordinates) {
+        const [lon, lat] = attendanceRecord?.clockIn?.location?.coordinates;
+        const address = await getAddressFromCoordinates(lat, lon);
+        setFormattedAddress(address);
       }
-      
-      // If address already exists in record, use it
-      if (attendanceRecord?.clockIn?.address) {
-        setFormattedAddress(attendanceRecord.clockIn.address);
-        cachedAddresses.current[cacheKey] = attendanceRecord.clockIn.address;
-        return;
-      }
-      
-      // Only fetch if not cached and not in record
-      const address = await getAddressFromCoordinates(lat, lon);
-      cachedAddresses.current[cacheKey] = address;
-      setFormattedAddress(address);
+    };
+
+    if (isClockedIn && attendanceRecord) {
+      fetchCurrentLocationAddress();
+    }
+  }, [attendanceRecord, isClockedIn]);
+
+  const loadUserData = async () => {
+    const data = await AsyncStorage.getItem('userData');
+    if (data) {
+      setUserData(JSON.parse(data));
     }
   };
 
-  // Only run if we don't already have an address
-  if (isClockedIn && attendanceRecord && !formattedAddress.includes('Lat:')) {
-    fetchCurrentLocationAddress();
-  }
-}, [attendanceRecord?.clockIn?.location, isClockedIn]); // More specific dependency
-
-  // const loadUserData = async () => {
-  //   const data = await AsyncStorage.getItem('userData');
-  //   if (data) {
-  //     setUserData(JSON.parse(data));
-  //   }
-  // };
-
-  // Optimize loadUserData to return the data
-const loadUserData = async () => {
-  try {
-    const data = await AsyncStorage.getItem('userData');
-    if (data) {
-      const parsed = JSON.parse(data);
-      setUserData(parsed);
-      return parsed;
-    }
-    return null;
-  } catch (error) {
-    console.error('Error loading user data:', error);
-    return null;
-  }
-};
-
-  // const checkCurrentStatus = async () => {
-  //   setRefreshing(true);
-  //   setLoading(true)
-  //   try {
-  //     const status = await getCurrentStatus();
-  //     setIsClockedIn(status?.isClockedIn);
-  //     setIsClockedOut(status?.isClockedOut);
-  //     // console.log("Current status:", status);
-  //     setAttendanceRecord(status?.currentRecord);
-  //   setLoading(false)
-  //   setRefreshing(true);
-  //   } catch (error) {
-  //     console.error('Error checking status:', error);
-  //   }
-  // };
-
-  // Optimize refresh to not block UI
-const checkCurrentStatus = async () => {
-  // Don't show loading spinner for refresh
-  setRefreshing(true);
-  
-  try {
-    const status = await getCurrentStatus();
-    setIsClockedIn(status?.isClockedIn);
-    setIsClockedOut(status?.isClockedOut);
-    setAttendanceRecord(status?.currentRecord);
-  } catch (error) {
-    console.error('Error checking status:', error);
-  } finally {
-    setRefreshing(false);
-  }
-};
-
-  // const getCurrentPosition = async () => {
-  //   try {
-  //     setLoading(true);
-  //     const location = await Location.getCurrentPositionAsync({
-  //       accuracy: Location.Accuracy.High,
-  //     });
-  //     setCurrentLocation(location);
-  //   } catch (error) {
-  //     console.error('Error getting location:', error);
-  //     Alert.alert('Error', 'Unable to get your location. Please enable location services.');
-  //   }
-  //   setLoading(false);
-  // };
-
-  // Optimize location fetching - use balanced accuracy
-const getCurrentPosition = async () => {
-  try {
-    // Don't show loading for background location updates
-    const location = await Location.getCurrentPositionAsync({
-      accuracy: Location.Accuracy.High, // Much faster than High
-      maximumAge: 10000, // Accept 10-second old location
-      timeout: 5000, // Timeout after 5 seconds
-    });
-    setCurrentLocation(location);
-  } catch (error) {
-    console.error('Error getting location:', error);
-    // Don't show alert - just log it
-    // Try again with lower accuracy as fallback
+  const checkCurrentStatus = async () => {
+    setLoading(true)
     try {
-      const location = await Location.getLastKnownPositionAsync({
-        maxAge: 60000, // Accept location up to 1 minute old
-      });
-      if (location) {
-        setCurrentLocation(location);
-      }
-    } catch (fallbackError) {
-      console.error('Fallback location error:', fallbackError);
+      const status = await getCurrentStatus();
+      setIsClockedIn(status?.isClockedIn);
+      setIsClockedOut(status?.isClockedOut);
+      // console.log("Current status:", status);
+      setAttendanceRecord(status?.currentRecord);
+    setLoading(false)
+    } catch (error) {
+      console.error('Error checking status:', error);
     }
-  }
-};
+  };
 
-  // const syncPendingData = async () => {
-  //   await syncOfflineData();
-  // };
-  // Make sync non-blocking
-const syncPendingData = async () => {
-  try {
-    // Run in background without blocking
+  const getCurrentPosition = async () => {
+    try {
+      setLoading(true);
+      const location = await Location.getCurrentPositionAsync({
+        accuracy: Location.Accuracy.High,
+      });
+      setCurrentLocation(location);
+    } catch (error) {
+      console.error('Error getting location:', error);
+      Alert.alert('Error', 'Unable to get your location. Please enable location services.');
+    }
+    setLoading(false);
+  };
+
+  const syncPendingData = async () => {
     await syncOfflineData();
-  } catch (error) {
-    console.error('Sync error:', error);
-  }
-};
+  };
 
 
   const handleClockIn = async () => {
@@ -336,8 +184,6 @@ const syncPendingData = async () => {
 
             const locationData = await response.json();
             const address = locationData.display_name || 'Address not available';
-            const batteryLevel = await Battery.getBatteryLevelAsync();
-            const batteryState = await Battery.getBatteryStateAsync();
 
             // 🔹 Send to backend
             const result = await markAttendance({
@@ -348,8 +194,7 @@ const syncPendingData = async () => {
               address,
               accuracy,
               deviceId,
-              batteryLevel: batteryLevel ? Math.round(batteryLevel * 100) : null,
-              batteryState : batteryState || null,
+              batteryLevel: 35,
               notes: 'Clocking in via mobile app',
             });
 
@@ -414,10 +259,7 @@ const handleClockOut = async () => {
 
           setLoading(true);
           try {
-            // const address = await getAddressFromCoordinates(latitude, longitude);
-            const address = formattedAddress || await getAddressFromCoordinates(latitude, longitude);
-            const batteryLevel = await Battery.getBatteryLevelAsync();
-            const batteryState = await Battery.getBatteryStateAsync();
+            const address = await getAddressFromCoordinates(latitude, longitude);
 
             const result = await markAttendance({
               type: 'clock_out',
@@ -427,8 +269,7 @@ const handleClockOut = async () => {
               address,
               accuracy,
               deviceId,
-              batteryLevel: batteryLevel ? Math.round(batteryLevel * 100) : null,
-              batteryState : batteryState || null,
+              batteryLevel: 35,
               notes: clockOutNote,
             });
 
@@ -505,26 +346,11 @@ const handleClockOut = async () => {
       {/* <FullScreenLoader visible={loading} text="Syncing data..." /> */}
       <View style={styles.header}>
         <Text style={styles.welcomeText}>
-          Welcome, {userData?.name || "Employee"}
+          Welcome, {userData?.name || 'Employee'}
         </Text>
-        <View style={{ flexDirection: "row", alignItems: "center", justifyContent: "space-between"}}>
-          <View>
-            <Text style={styles.statusText}>
-              Status: {isClockedIn ? "On Duty" : "Off Duty"}
-            </Text>
-          </View>
-          <TouchableOpacity
-            onPress={() => checkCurrentStatus()}
-            // disabled={refreshing}
-          >
-            <MaterialIcons
-              name="refresh"
-              size={24}
-              color="#ffffff"
-              style={refreshing && styles.refreshingIcon}
-            />
-          </TouchableOpacity>
-        </View>
+        <Text style={styles.statusText}>
+          Status: {isClockedIn ? 'On Duty' : 'Off Duty'}
+        </Text>
       </View>
 
       {currentLocation && (
@@ -537,32 +363,25 @@ const handleClockOut = async () => {
           }
           style={styles.locationInfo}
         >
-          <View
-            style={{
-              flexDirection: "row",
-              justifyContent: "space-between",
-              alignItems: "center",
-              paddingHorizontal: 10
-            }}
-          >
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
-              <MaterialIcons name="location-on" size={20} color="#666" />
-              <View>
-                <Text style={styles.locationText}>
-                  Latitude: {currentLocation.coords.latitude.toFixed(6)}
-                </Text>
-
-                <Text style={styles.locationText}>
-                  Longitude: {currentLocation.coords.longitude.toFixed(6)}
-                </Text>
-              </View>
+          <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
+            {/* <MaterialIcons name="location-on" size={20} color="#666" /> */}
+            <View>
+              <Text style={styles.locationText}>
+                Latitude: {currentLocation.coords.latitude.toFixed(6)}
+              </Text>
+              
+              <Text style={styles.locationText}>
+                Longitude: {currentLocation.coords.longitude.toFixed(6)}
+              </Text>
             </View>
-            <View style={{ flexDirection: "row", alignItems: "center" }}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
               <Text style={styles.locationText}>Open in Maps </Text>
               <MaterialIcons name="directions" size={20} color="#666" />
             </View>
           </View>
+          
         </Pressable>
+
       )}
 
       {attendanceRecord && isClockedIn && (
@@ -572,10 +391,7 @@ const handleClockOut = async () => {
             <View style={styles.infoRow}>
               <MaterialIcons name="schedule" size={18} color="#666" />
               <Text style={styles.infoText}>
-                Clock in:{" "}
-                {moment(
-                  attendanceRecord?.clockIn?.time || attendanceRecord?.clock_in
-                ).format("hh:mm A")}
+                Clock in: {moment(attendanceRecord?.clockIn?.time || attendanceRecord?.clock_in).format('hh:mm A')}
               </Text>
             </View>
             <View style={styles.infoRow}>
@@ -588,35 +404,26 @@ const handleClockOut = async () => {
         </View>
       )}
 
-      {isClockedOut && (
+      {isClockedOut &&  (
         <View style={styles.currentShiftContainer}>
           <Text style={styles.shiftTitle}>Current Shift</Text>
           <View style={styles.shiftInfo}>
             <View style={styles.infoRow}>
               <MaterialIcons name="schedule" size={18} color="#666" />
               <Text style={styles.infoText}>
-                Clock in:{" "}
-                {moment(
-                  attendanceRecord?.clockIn?.time || attendanceRecord?.clock_in
-                ).format("hh:mm A")}
+                Clock in: {moment(attendanceRecord?.clockIn?.time || attendanceRecord?.clock_in).format('hh:mm A')}
               </Text>
               <Text style={styles.infoText}>
-                Clock out:{" "}
-                {moment(
-                  attendanceRecord?.clockOut?.time ||
-                    attendanceRecord?.clock_out
-                ).format("hh:mm A")}
+                Clock out: {moment(attendanceRecord?.clockOut?.time || attendanceRecord?.clock_out).format('hh:mm A')}
               </Text>
             </View>
-            {attendanceRecord?.clockIn?.address && (
-              <View style={styles.infoRow}>
-                <MaterialIcons name="location-on" size={18} color="#666" />
-                <Text style={styles.infoText} numberOfLines={2}>
-                  {/* {formattedAddress} */}
-                  {attendanceRecord?.clockIn?.address}
-                </Text>
-              </View>
-            )}
+            <View style={styles.infoRow}>
+              <MaterialIcons name="location-on" size={18} color="#666" />
+              <Text style={styles.infoText} numberOfLines={2}>
+                {/* {formattedAddress} */}
+                {attendanceRecord?.clockIn?.address}
+              </Text>
+            </View>
           </View>
         </View>
       )}
@@ -664,25 +471,36 @@ const handleClockOut = async () => {
               )}
             </TouchableOpacity>
           </>
-        ) : null}
+        ): null}
       </View>
 
       <View style={styles.menuContainer}>
         <TouchableOpacity
           style={styles.menuItem}
-          onPress={() => navigation.navigate("History")}
+          onPress={() => navigation.navigate('History')}
         >
           <MaterialIcons name="history" size={24} color="#007AFF" />
           <Text style={styles.menuText}>Attendance History</Text>
         </TouchableOpacity>
-
+        
         <TouchableOpacity
           style={styles.menuItem}
-          onPress={() => navigation.navigate("Profile")}
+          onPress={() => navigation.navigate('Profile')}
         >
           <MaterialIcons name="person" size={24} color="#007AFF" />
           <Text style={styles.menuText}>Profile</Text>
         </TouchableOpacity>
+        {/* <TouchableOpacity 
+          title="Test Notification" 
+          onPress={async () => {
+            await Notifications.scheduleNotificationAsync({
+              content: {
+                title: "Test",
+                body: "Test notification",
+              },
+              trigger: null, // Immediate
+            });
+          }}><Text>Test Notification</Text></TouchableOpacity> */}
       </View>
     </ScrollView>
   );
@@ -732,7 +550,7 @@ const styles = StyleSheet.create({
   locationText: {
     fontSize: 12,
     color: '#666',
-    marginLeft: 10,
+    marginLeft: 25,
   },
   currentShiftContainer: {
     margin: 15,
@@ -823,8 +641,5 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#2c3e50',
     fontWeight: '500',
-  },
-    refreshingIcon: {
-    transform: [{ rotate: '360deg' }],
   },
 });

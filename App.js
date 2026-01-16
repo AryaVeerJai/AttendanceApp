@@ -1,5 +1,6 @@
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import React, { useState, useEffect, useRef } from 'react';
+import { Alert, AppState } from 'react-native';
 import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { SafeAreaProvider } from 'react-native-safe-area-context';
@@ -7,96 +8,145 @@ import * as TaskManager from 'expo-task-manager';
 import * as Location from 'expo-location';
 import * as Notifications from 'expo-notifications';
 import NotificationScheduler from './src/components/NotificationScheduler';
-
+import LocationTracker from './src/components/LocationTracker';
 
 // Screens
 import LoginScreen from './src/screens/LoginScreen';
 import AttendanceScreen from './src/screens/AttendanceScreen';
 import ProfileScreen from './src/screens/ProfileScreen';
 import HistoryScreen from './src/screens/HistoryScreen';
-import LocationTracker from './src/components/LocationTracker';
 import { getDeviceId, getDeviceInfo } from './src/utils/deviceHelper';
 import logger from './src/utils/logger';
 
-// const apiUrl = import.meta.env.EXPO_PUBLIC_API_URL;
-// import { EXPO_PUBLIC_API_URL } from '@env';
-
 const Stack = createStackNavigator();
-const EXPO_PUBLIC_API_URL = "http://143.244.137.105:8082/"
+const EXPO_PUBLIC_API_URL = "https://attendance.wattnengineering.com/api";
 
 // Background location task
 const LOCATION_TASK_NAME = 'background-location-task';
 
 TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
   logger.background('BACKGROUND TASK TRIGGERED', new Date().toLocaleString());
-  // console.log('🔔 ===== BACKGROUND TASK TRIGGERED =====');
-  // console.log('⏰ Time:', new Date().toLocaleString());
+  
   if (error) {
-    // console.error('Location task error:', error);
     logger.error('Location task error:', error);
     return;
   }
   
   if (data) {
     const { locations } = data;
-    // console.log(`📍 Received ${locations?.length} location(s)`);
-
     const location = locations[0];
     
     if (location) {
-      // console.log('📌 Location:', {
-      //   lat: location.coords.latitude,
-      //   lng: location.coords.longitude,
-      //   accuracy: location.coords.accuracy,
-      //   timestamp: new Date(location.timestamp).toLocaleString()
-      // });
-
       logger.location('Background location captured', {
         lat: location.coords.latitude.toFixed(4),
         lng: location.coords.longitude.toFixed(4),
         accuracy: location.coords.accuracy
       });
 
-      // Send location to backend
       await sendLocationToBackend(location);
     }
   }
 
-  // console.log('✅ ===== TASK COMPLETED =====');
   logger.background('TASK COMPLETED', new Date().toLocaleString());
 });
 
 async function sendLocationToBackend(location) {
-  const deviceId = await getDeviceId();
-  const deviceInfo = getDeviceInfo();
   try {
+    const deviceId = await getDeviceId();
+    const deviceInfo = getDeviceInfo();
     const userData = await AsyncStorage.getItem('userData');
+    
     if (userData) {
       const { employeeId, token } = JSON.parse(userData);
       
-      // await fetch('YOUR_BACKEND_API/location/update', {
-      // await fetch('http://192.168.29.54:8082/api/location/update', {
-      await fetch(`${EXPO_PUBLIC_API_URL}api/location/update`, {
+      const payload = {
+        employeeId,
+        latitude: location.coords.latitude,
+        longitude: location.coords.longitude,
+        timestamp: new Date().toISOString(),
+        accuracy: location.coords.accuracy,
+        isBackground: true,
+        deviceId: deviceId,
+        deviceInfo: deviceInfo,
+      };
+      
+      const response = await fetch(`${EXPO_PUBLIC_API_URL}/location/update`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`,
         },
-        body: JSON.stringify({
-          employeeId,
-          latitude: location.coords.latitude,
-          longitude: location.coords.longitude,
-          timestamp: new Date().toISOString(),
-          accuracy: location.coords.accuracy,
-          isBackground: true,
-          deviceId: deviceId, // You can generate this
-        }),
+        body: JSON.stringify(payload),
       });
+
+      if (!response.ok) {
+        logger.error('Failed to send background location:', response.status);
+      } else {
+        logger.info('Background location sent successfully');
+      }
     }
   } catch (error) {
-    // console.log('Error sending location:', error);
     logger.error('Background location error:', error.message);
-    // console.error('Error sending location:', error);
+  }
+}
+
+// Helper function to start background tracking
+async function startBackgroundTracking() {
+  try {
+    // Check if app is in foreground
+    const appStateValue = AppState.currentState;
+    if (appStateValue !== 'active') {
+      logger.info('Cannot start background tracking - app not in foreground');
+      return false;
+    }
+
+    const { status: backgroundStatus } = await Location.getBackgroundPermissionsAsync();
+    
+    if (backgroundStatus === 'granted') {
+      const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
+      
+      if (!hasStarted) {
+        await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
+          accuracy: Location.Accuracy.Balanced,
+          timeInterval: 300000, // 5 minutes
+          distanceInterval: 100, // 100 meters
+          deferredUpdatesInterval: 300000,
+          deferredUpdatesDistance: 100,
+          foregroundService: {
+            notificationTitle: 'Attendance Tracking Active',
+            notificationBody: 'Tracking your location for work attendance',
+            notificationColor: '#007AFF',
+          },
+          showsBackgroundLocationIndicator: true,
+          pausesUpdatesAutomatically: false,
+        });
+        
+        logger.background('Background tracking started');
+        return true;
+      } else {
+        logger.info('Background tracking already running');
+        return true;
+      }
+    } else {
+      logger.info('Background permission not granted');
+      return false;
+    }
+  } catch (error) {
+    logger.error('Error starting background tracking:', error);
+    return false;
+  }
+}
+
+// Helper function to stop background tracking
+export async function stopBackgroundTracking() {
+  try {
+    const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
+    if (hasStarted) {
+      await Location.stopLocationUpdatesAsync(LOCATION_TASK_NAME);
+      logger.background('Background tracking stopped');
+    }
+  } catch (error) {
+    logger.error('Error stopping background tracking:', error);
   }
 }
 
@@ -105,11 +155,13 @@ export default function App() {
   const [locationPermission, setLocationPermission] = useState(null);
   const notificationListener = useRef();
   const responseListener = useRef();
+  const appState = useRef(AppState.currentState);
 
   useEffect(() => {
     checkLoginStatus();
-    requestPermissions();
     setupNotifications();
+    setupAppStateListener();
+    requestPermissions();
 
     // Listeners for notifications
     notificationListener.current =
@@ -130,101 +182,163 @@ export default function App() {
     };
   }, []);
 
-  
+  // Start background tracking after login if permissions already granted
+  useEffect(() => {
+    if (isLoggedIn && locationPermission) {
+      // Small delay to ensure app is stable
+      setTimeout(() => {
+        startBackgroundTrackingIfPermitted();
+      }, 2000);
+    }
+  }, [isLoggedIn, locationPermission]);
+
+  const setupAppStateListener = () => {
+    const subscription = AppState.addEventListener('change', async (nextAppState) => {
+      // App going to background
+      if (
+        appState.current.match(/active/) &&
+        nextAppState.match(/inactive|background/)
+      ) {
+        logger.info('App going to background - background tracking continues');
+      }
+      
+      // App coming to foreground
+      if (
+        appState.current.match(/inactive|background/) &&
+        nextAppState === 'active'
+      ) {
+        logger.info('App came to foreground');
+        
+        // Try to start background tracking if logged in and not already started
+        if (isLoggedIn && locationPermission) {
+          const hasStarted = await Location.hasStartedLocationUpdatesAsync(LOCATION_TASK_NAME);
+          
+          if (!hasStarted) {
+            logger.info('Restarting background tracking after app came to foreground');
+            setTimeout(async () => {
+              await startBackgroundTracking();
+            }, 1000);
+          }
+        }
+      }
+      
+      appState.current = nextAppState;
+    });
+
+    return () => {
+      subscription?.remove();
+    };
+  };
 
   const checkLoginStatus = async () => {
-    // Check if user is logged in from AsyncStorage
-    const userData = await AsyncStorage.getItem('userData');
-    setIsLoggedIn(!!userData);
+    try {
+      const userData = await AsyncStorage.getItem('userData');
+      setIsLoggedIn(!!userData);
+    } catch (error) {
+      logger.error('Error checking login status:', error);
+      setIsLoggedIn(false);
+    }
   };
 
   const requestPermissions = async () => {
-    const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
+    try {
+      // Request foreground location
+      const { status: foregroundStatus } = await Location.requestForegroundPermissionsAsync();
 
-    if (foregroundStatus !== "granted") {
-      Alert.alert(
-        "Permission Required",
-        "Location permission is required for attendance tracking"
-      );
-      return;
-    }
+      if (foregroundStatus !== "granted") {
+        Alert.alert(
+          "Permission Required",
+          "Location permission is required for attendance tracking"
+        );
+        setLocationPermission(false);
+        return;
+      }
 
-    // Request background location
-    const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
+      setLocationPermission(true);
+      logger.info('Foreground location permission granted');
 
-    if (backgroundStatus !== 'granted') {
-      Alert.alert(
-        'Background Permission Required',
-        'Please enable "Allow all the time" in location settings for attendance tracking to work when the app is closed.'
-      );
-    }
-    
-    setLocationPermission(foregroundStatus === 'granted');
-    
-    if (backgroundStatus === 'granted') {
-      await Location.startLocationUpdatesAsync(LOCATION_TASK_NAME, {
-        accuracy: Location.Accuracy.Balanced,
-        // timeInterval: 30000, // Update every 30 seconds
-        // distanceInterval: 50, // Update every 50 meters
-        timeInterval: 300000, // 5 minutes (300 seconds)
-        distanceInterval: 100, // 100 meters
-        deferredUpdatesInterval: 300000,
-        deferredUpdatesDistance: 100,
-        // ✅ CRITICAL for Android - Shows persistent notification
-        foregroundService: {
-          notificationTitle: 'Attendance Tracking Active',
-          notificationBody: 'Tracking your location for work attendance',
-          notificationColor: '#4CAF50',
-        },
-        showsBackgroundLocationIndicator: true,
-        pausesUpdatesAutomatically: false,
-      });
+      // Request background location
+      const { status: backgroundStatus } = await Location.requestBackgroundPermissionsAsync();
+
+      if (backgroundStatus !== 'granted') {
+        Alert.alert(
+          'Background Permission Recommended',
+          'For best results, enable "Allow all the time" in location settings. This allows attendance tracking when the app is closed.'
+        );
+        logger.info('Background location permission denied');
+      } else {
+        logger.info('Background location permission granted');
+      }
+      
+    } catch (error) {
+      logger.error('Error requesting permissions:', error);
+      setLocationPermission(false);
     }
   };
 
-const setupNotifications = async () => {
-  try {
-    const { status } = await Notifications.requestPermissionsAsync();
-    if (status !== 'granted') {
-      console.log('Notification permissions not granted');
-      return;
-    }
-    
-    // console.log('Notification permissions granted');
-    
-    // Set notification handler
-    Notifications.setNotificationHandler({
-      handleNotification: async () => ({
-        shouldShowAlert: true,
-        shouldPlaySound: true,
-        shouldSetBadge: false,
-      }),
-    });
-    
-    // For Android: Create notification channel
-    await Notifications.setNotificationChannelAsync('default', {
-      name: 'default',
-      importance: Notifications.AndroidImportance.MAX,
-      vibrationPattern: [0, 250, 250, 250],
-      lightColor: '#FF231F7C',
-    });
-    
-  } catch (error) {
-    console.log('Notifications not available:', error.message);
-  }
-};
+  const startBackgroundTrackingIfPermitted = async () => {
+    try {
+      // Ensure app is in foreground before starting
+      if (appState.current !== 'active') {
+        logger.info('App not in foreground, will retry when app becomes active');
+        return;
+      }
 
+      const { status: backgroundStatus } = await Location.getBackgroundPermissionsAsync();
+      
+      if (backgroundStatus === 'granted') {
+        const success = await startBackgroundTracking();
+        if (!success) {
+          logger.info('Background tracking not started, will retry later');
+        }
+      } else {
+        logger.info('Background permission not granted, skipping background tracking');
+      }
+    } catch (error) {
+      logger.error('Error checking background permission:', error);
+    }
+  };
+
+  const setupNotifications = async () => {
+    try {
+      const { status } = await Notifications.requestPermissionsAsync();
+      if (status !== 'granted') {
+        console.log('Notification permissions not granted');
+        return;
+      }
+      
+      // Set notification handler
+      Notifications.setNotificationHandler({
+        handleNotification: async () => ({
+          shouldShowAlert: true,
+          shouldPlaySound: true,
+          shouldSetBadge: false,
+        }),
+      });
+      
+      // For Android: Create notification channel
+      await Notifications.setNotificationChannelAsync('default', {
+        name: 'default',
+        importance: Notifications.AndroidImportance.MAX,
+        vibrationPattern: [0, 250, 250, 250],
+        lightColor: '#FF231F7C',
+      });
+      
+    } catch (error) {
+      console.log('Notifications not available:', error.message);
+    }
+  };
+
+  const handleLogout = async () => {
+    await stopBackgroundTracking();
+    await checkLoginStatus();
+  };
 
   return (
     <SafeAreaProvider>
       <NavigationContainer>
         <Stack.Navigator>
           {!isLoggedIn ? (
-            // <Stack.Screen 
-            //   name="Login" 
-            //   component={LoginScreen} 
-            //   options={{ headerShown: false }}
-            // />
             <Stack.Screen
               name="Login"
               options={{ headerShown: false }}
@@ -245,21 +359,17 @@ const setupNotifications = async () => {
               />
 
               <Stack.Screen
-              name="Profile"
-              options={{ title: 'Profile' }}
-            >
-              {(props) => (
-                <ProfileScreen
-                  {...props}
-                  onLogoutSuccess={checkLoginStatus}
-                />
-              )}
-            </Stack.Screen>
-              {/* <Stack.Screen 
-                name="Profile" 
-                component={ProfileScreen} 
+                name="Profile"
                 options={{ title: 'Profile' }}
-              /> */}
+              >
+                {(props) => (
+                  <ProfileScreen
+                    {...props}
+                    onLogoutSuccess={handleLogout}
+                  />
+                )}
+              </Stack.Screen>
+
               <Stack.Screen 
                 name="History" 
                 component={HistoryScreen} 
@@ -269,7 +379,11 @@ const setupNotifications = async () => {
           )}
         </Stack.Navigator>
       </NavigationContainer>
-      {/* {isLoggedIn && locationPermission && <LocationTracker />} */}
+      
+      {/* Foreground tracking when app is active */}
+      {isLoggedIn && locationPermission && <LocationTracker />}
+      
+      {/* Notifications */}
       {isLoggedIn && <NotificationScheduler />}
     </SafeAreaProvider>
   );
